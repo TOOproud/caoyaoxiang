@@ -69,7 +69,7 @@ git push -u origin main
 - 所有数据保存在浏览器 `localStorage`，key 为 `caoyaoxiang_v1`
 - 清空数据：浏览器 DevTools Console 执行 `localStorage.clear()` 后刷新
 - 换浏览器/换设备数据**不会**同步，本应用纯本地
-
+  
 ## 📜 License
 
 MIT —— 随便用、随便改、随便分享。
