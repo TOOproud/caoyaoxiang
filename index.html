@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>草药箱 - 家庭中药管理</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<meta name="description" content="草药箱 - 家庭中药材库存、经方编辑、智能取药管理网页应用，数据本地保存，开箱即用。" />
+<meta name="theme-color" content="#16a34a" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color: #1f2937; }
+  body { display: flex; background: #fef9e7; min-height: 100vh; }
+
+  /* ===== 侧边栏 ===== */
+  .sidebar { width: 240px; background: #ffffff; padding: 24px 16px; display: flex; flex-direction: column; border-right: 1px solid #f0e9d2; }
+  .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 28px 8px; }
+  .brand-logo { width: 44px; height: 44px; border-radius: 50%; background: #16a34a; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; }
+  .brand-name { font-size: 20px; font-weight: 700; }
+  .brand-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .nav { display: flex; flex-direction: column; gap: 6px; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; cursor: pointer; color: #374151; font-size: 15px; user-select: none; transition: background .15s, color .15s; }
+  .nav-item:hover { background: #f3f4f6; }
+  .nav-item.active { background: #16a34a; color: #ffffff; font-weight: 600; }
+  .nav-item .ico { width: 18px; text-align: center; }
+  .sidebar-foot { margin-top: auto; padding: 14px 16px; background: #ecfdf5; color: #047857; border-radius: 10px; font-size: 13px; text-align: center; }
+
+  /* ===== 主区域 ===== */
+  .main { flex: 1; padding: 36px 44px; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 26px; font-weight: 700; }
+  .page-sub { color: #6b7280; margin-top: 4px; margin-bottom: 22px; font-size: 14px; }
+
+  /* ===== 主页 ===== */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .stat-card { background: #fff; border-radius: 14px; padding: 22px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .stat-card.green { background: #ecfdf5; }
+  .stat-card.brown { background: #f6ece4; }
+  .stat-card.blue { background: #eff6ff; }
+  .stat-card .label { color: #6b7280; font-size: 14px; }
+  .stat-card .num { font-size: 30px; font-weight: 700; margin-top: 6px; color: #16a34a; }
+  .stat-card.brown .num { color: #92400e; }
+  .stat-card.blue .num { color: #1d4ed8; }
+  .stat-card .icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; }
+  .stat-card.green .icon { background: #16a34a; }
+  .stat-card.brown .icon { background: #92400e; }
+  .stat-card.blue .icon { background: #1d4ed8; }
+
+  .panel { background: #fff; border-radius: 14px; padding: 22px 24px; margin-top: 22px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .panel h3 { font-size: 17px; margin-bottom: 14px; }
+  .record-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #f1f5f9; }
+  .record-row:last-child { border-bottom: none; }
+  .record-row .name { font-weight: 600; }
+  .record-row .time { color: #9ca3af; font-size: 12px; margin-top: 2px; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+  .badge.ok { background: #d1fae5; color: #047857; }
+  .badge.idle { background: #e5e7eb; color: #4b5563; }
+  .badge.low { background: #fee2e2; color: #b91c1c; }
+  .empty { color: #9ca3af; text-align: center; padding: 24px 0; font-size: 14px; }
+
+  /* ===== 按钮 / 表单 ===== */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 10px; font-size: 14px; cursor: pointer; border: none; transition: background .15s, transform .05s; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: #16a34a; color: #fff; }
+  .btn-primary:hover { background: #15803d; }
+  .btn-light { background: #fff; color: #1f2937; border: 1px solid #e5e7eb; }
+  .btn-light:hover { background: #f9fafb; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-ghost { background: transparent; color: #6b7280; padding: 6px; }
+  .btn-ghost:hover { color: #16a34a; }
+
+  .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .page-head .left h2 { font-size: 26px; font-weight: 700; }
+  .page-head .left p { color: #6b7280; font-size: 14px; margin-top: 4px; }
+
+  .search-box { position: relative; margin-bottom: 22px; }
+  .search-box input { width: 100%; padding: 14px 14px 14px 42px; border-radius: 12px; border: 1px solid #e5e7eb; background: #fff; font-size: 14px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .search-box input:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+  .search-box::before { content: "🔍"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 14px; }
+
+  /* ===== 卡片网格 ===== */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+  .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04); position: relative; transition: transform .12s, box-shadow .12s; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .card-icon { width: 38px; height: 38px; border-radius: 50%; background: #ecfdf5; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .card-icon.book { background: #f6ece4; color: #92400e; }
+  .card-title { font-size: 17px; font-weight: 700; }
+  .card-actions { position: absolute; top: 16px; right: 16px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+  .card:hover .card-actions { opacity: 1; }
+  .card-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; font-size: 14px; }
+  .card-row .k { color: #6b7280; flex-shrink: 0; margin-right: 12px; }
+  .card-row .v { text-align: right; color: #374151; }
+  .card-note { color: #6b7280; font-size: 13px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #f1f5f9; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; background: #ecfdf5; color: #16a34a; padding: 4px 10px; border-radius: 999px; font-size: 12px; margin: 4px 6px 0 0; }
+  .efficacy { color: #374151; font-size: 14px; margin-top: 4px; }
+  .small-label { color: #6b7280; font-size: 13px; margin-top: 12px; }
+
+  /* ===== 弹窗 ===== */
+  .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-mask.open { display: flex; }
+  .modal { width: 460px; max-width: 92vw; background: #fff; border-radius: 16px; padding: 26px 28px; max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(15,23,42,.18); }
+  .modal.wide { width: 600px; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .modal-head h3 { font-size: 18px; }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280; }
+  .modal-close:hover { color: #1f2937; }
+  .form-item { margin-bottom: 14px; }
+  .form-item label { display: block; font-size: 14px; margin-bottom: 6px; color: #374151; }
+  .form-item input, .form-item textarea, .form-item select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #e5e7eb; font-size: 14px; outline: none; font-family: inherit; transition: border-color .15s, box-shadow .15s; }
+  .form-item input:focus, .form-item textarea:focus, .form-item select:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+  .form-item textarea { min-height: 70px; resize: vertical; }
+  .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+  .ingr-row { display: grid; grid-template-columns: 1fr 100px 36px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .ingr-row .del { background: #fee2e2; color: #b91c1c; border: none; border-radius: 8px; height: 38px; cursor: pointer; font-size: 16px; }
+  .ingr-row .del:hover { background: #fecaca; }
+  .add-ingr { background: #f0fdf4; color: #16a34a; border: 1px dashed #86efac; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; width: 100%; }
+  .add-ingr:hover { background: #dcfce7; }
+
+  /* ===== 智能匹配 tabs ===== */
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tab { background: #fff; color: #374151; padding: 10px 18px; border-radius: 10px; cursor: pointer; border: 1px solid #e5e7eb; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+  .tab.active { background: #16a34a; color: #fff; border-color: #16a34a; }
+
+  /* ===== Toast ===== */
+  .toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); background: #1f2937; color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 14px; z-index: 200; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(6px); }
+  .toast.ok { background: #16a34a; }
+  .toast.err { background: #dc2626; }
+
+  /* ===== 取药弹窗细节 ===== */
+  .take-list { background: #f9fafb; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .take-list .item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px dashed #e5e7eb; }
+  .take-list .item:last-child { border-bottom: none; }
+  .take-list .item.low { color: #b91c1c; }
+  .stock-hint { font-size: 12px; color: #6b7280; }
+  .stock-hint.low { color: #b91c1c; }
+
+  /* 滚动条美化 */
+  .main::-webkit-scrollbar, .modal::-webkit-scrollbar { width: 6px; }
+  .main::-webkit-scrollbar-thumb, .modal::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<!-- ===== 侧边栏 ===== -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-logo">🌿</div>
+    <div>
+      <div class="brand-name">草药箱</div>
+      <div class="brand-sub">家庭中药管理</div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" data-page="home"><span class="ico">🏠</span>主页</div>
+    <div class="nav-item" data-page="herbs"><span class="ico">🌱</span>药材管理</div>
+    <div class="nav-item" data-page="formulas"><span class="ico">📖</span>经方管理</div>
+    <div class="nav-item" data-page="match"><span class="ico">🔎</span>智能匹配</div>
+  </nav>
+  <div class="sidebar-foot">中医药智慧，家庭健康守护</div>
+</aside>
+
+<!-- ===== 主内容 ===== -->
+<main class="main">
+
+  <!-- 主页 -->
+  <section class="page active" id="page-home">
+    <h2 class="page-title">欢迎使用草药箱</h2>
+    <p class="page-sub">高效管理家庭中药材库存，守护家人健康</p>
+
+    <div class="stat-row">
+      <div class="stat-card green">
+        <div>
+          <div class="label">药材总数</div>
+          <div class="num" id="stat-herbs">0</div>
+        </div>
+        <div class="icon">🌱</div>
+      </div>
+      <div class="stat-card brown">
+        <div>
+          <div class="label">经方总数</div>
+          <div class="num" id="stat-formulas">0</div>
+        </div>
+        <div class="icon">📖</div>
+      </div>
+      <div class="stat-card blue">
+        <div>
+          <div class="label">使用记录</div>
+          <div class="num" id="stat-records">0</div>
+        </div>
+        <div class="icon">🕘</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>最近取药记录</h3>
+      <div id="recent-records"></div>
+    </div>
+  </section>
+
+  <!-- 药材管理 -->
+  <section class="page" id="page-herbs">
+    <div class="page-head">
+      <div class="left">
+        <h2>药材管理</h2>
+        <p>管理您的中药材库存</p>
+      </div>
+      <button class="btn btn-primary" onclick="openHerbModal()">+ 添加药材</button>
+    </div>
+    <div class="search-box">
+      <input id="herb-search" placeholder="搜索药材名称或适用症状..." oninput="renderHerbs()" />
+    </div>
+    <div class="grid" id="herb-grid"></div>
+  </section>
+
+  <!-- 经方管理 -->
+  <section class="page" id="page-formulas">
+    <div class="page-head">
+      <div class="left">
+        <h2>经方管理</h2>
+        <p>管理您的中医药方</p>
+      </div>
+      <button class="btn btn-primary" onclick="openFormulaModal()">+ 添加经方</button>
+    </div>
+    <div class="search-box">
+      <input id="formula-search" placeholder="搜索经方名称或功效..." oninput="renderFormulas()" />
+    </div>
+    <div class="grid" id="formula-grid"></div>
+  </section>
+
+  <!-- 智能匹配 -->
+  <section class="page" id="page-match">
+    <h2 class="page-title">智能匹配</h2>
+    <p class="page-sub">根据症状快速匹配药材和经方</p>
+    <div class="search-box">
+      <input id="match-search" placeholder="输入症状，如：感冒发热、咳嗽痰多、头痛..." oninput="renderMatch()" />
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="herb" onclick="switchMatchTab('herb')">🌱 匹配药材</div>
+      <div class="tab" data-tab="formula" onclick="switchMatchTab('formula')">📖 匹配经方</div>
+    </div>
+    <div class="grid" id="match-grid"></div>
+  </section>
+</main>
+
+<!-- ===== 药材弹窗 ===== -->
+<div class="modal-mask" id="herb-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="herb-modal-title">添加药材</h3>
+      <button class="modal-close" onclick="closeModal('herb-modal')">✕</button>
+    </div>
+    <div class="form-item">
+      <label>药材名称 *</label>
+      <input id="herb-name" placeholder="如：黄芪" />
+    </div>
+    <div class="form-item">
+      <label>重量（克）*</label>
+      <input id="herb-weight" type="number" min="0" step="0.1" placeholder="请输入重量" />
+    </div>
+    <div class="form-item">
+      <label>适用症状</label>
+      <textarea id="herb-symptoms" placeholder="请输入适用症状，如：感冒发热、咳嗽痰多"></textarea>
+    </div>
+    <div class="form-item">
+      <label>备注</label>
+      <input id="herb-note" placeholder="请输入备注信息" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-light" onclick="closeModal('herb-modal')">取消</button>
+      <button class="btn btn-primary" id="herb-save-btn" onclick="saveHerb()">添加药材</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 经方弹窗 ===== -->
+<div class="modal-mask" id="formula-modal">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3 id="formula-modal-title">添加经方</h3>
+      <button class="modal-close" onclick="closeModal('formula-modal')">✕</button>
+    </div>
+    <div class="form-item">
+      <label>经方名称 *</label>
+      <input id="formula-name" placeholder="如：当归补血汤" />
+    </div>
+    <div class="form-item">
+      <label>功效</label>
+      <input id="formula-efficacy" placeholder="如：补气养血" />
+    </div>
+    <div class="form-item">
+      <label>药材组成 *</label>
+      <div id="ingr-list"></div>
+      <button class="add-ingr" onclick="addIngrRow()">+ 添加药材</button>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-light" onclick="closeModal('formula-modal')">取消</button>
+      <button class="btn btn-primary" id="formula-save-btn" onclick="saveFormula()">保存经方</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 取药弹窗 ===== -->
+<div class="modal-mask" id="take-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>取药确认</h3>
+      <button class="modal-close" onclick="closeModal('take-modal')">✕</button>
+    </div>
+    <p style="font-size:14px;color:#6b7280;margin-bottom:12px;">将按下列用量扣除库存：</p>
+    <div class="take-list" id="take-list"></div>
+    <div class="form-actions">
+      <button class="btn btn-light" onclick="closeModal('take-modal')">取消</button>
+      <button class="btn btn-primary" id="take-confirm-btn" onclick="confirmTake()">确认取药</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+ *  草药箱 - 数据层（localStorage）
+ * ========================================================== */
+const STORAGE_KEY = 'caoyaoxiang_v1';
+
+const DEFAULT_DATA = {
+  herbs: [
+    { id: 'h1', name: '黄芪',   weight: 150, symptoms: '气虚乏力、食少便溏、中气下陷', note: '内蒙古产，优质黄芪' },
+    { id: 'h2', name: '当归',   weight: 100, symptoms: '血虚萎黄、眩晕心悸、月经不调', note: '甘肃岷县当归' },
+    { id: 'h3', name: '党参',   weight: 80,  symptoms: '脾胃虚弱、食欲不振、四肢乏力', note: '山西潞党参' },
+    { id: 'h4', name: '白术',   weight: 120, symptoms: '脾虚食少、腹胀泄泻、痰饮眩悸', note: '浙江白术' },
+    { id: 'h5', name: '茯苓',   weight: 200, symptoms: '水肿尿少、痰饮眩悸、脾虚食少', note: '云南茯苓' },
+    { id: 'h6', name: '甘草',   weight: 180, symptoms: '脾胃虚弱、心悸气短、调和诸药', note: '宁夏甘草' },
+    { id: 'h7', name: '川芎',   weight: 90,  symptoms: '头痛眩晕、月经不调、自汗盗汗', note: '四川川芎' },
+    { id: 'h8', name: '白芍',   weight: 99,  symptoms: '', note: '' }
+  ],
+  formulas: [
+    { id: 'f1', name: '当归补血汤', efficacy: '补气养血', ingredients: [ {name:'黄芪', amount:30}, {name:'当归', amount:15} ] },
+    { id: 'f2', name: '四君子汤',   efficacy: '益气健脾', ingredients: [ {name:'党参', amount:12}, {name:'白术', amount:12}, {name:'茯苓', amount:12}, {name:'甘草', amount:6} ] },
+    { id: 'f3', name: '四物汤',     efficacy: '补血养血', ingredients: [ {name:'当归', amount:12}, {name:'川芎', amount:8}, {name:'白芍', amount:12}, {name:'黄芪', amount:15} ] }
+  ],
+  records: [
+    { id: 'r1', formulaName: '当归补血汤', time: '2024/3/20 16:30:00', status: '已取药' }
+  ]
+};
+
+let state = loadData();
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_DATA));
+      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    return JSON.parse(JSON.stringify(DEFAULT_DATA));
+  }
+}
+function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function uid(prefix='id') { return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ============================================================
+ *  导航
+ * ========================================================== */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const page = item.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i === item));
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
+    if (page === 'home') renderHome();
+    if (page === 'herbs') renderHerbs();
+    if (page === 'formulas') renderFormulas();
+    if (page === 'match') renderMatch();
+  });
+});
+
+/* ============================================================
+ *  Toast & 弹窗工具
+ * ========================================================== */
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.className = 'toast', 1800);
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ============================================================
+ *  主页
+ * ========================================================== */
+function renderHome() {
+  document.getElementById('stat-herbs').textContent = state.herbs.length;
+  document.getElementById('stat-formulas').textContent = state.formulas.length;
+  document.getElementById('stat-records').textContent = state.records.length;
+
+  const box = document.getElementById('recent-records');
+  if (state.records.length === 0) {
+    box.innerHTML = '<div class="empty">暂无取药记录</div>';
+    return;
+  }
+  const list = state.records.slice().reverse().slice(0, 8);
+  box.innerHTML = list.map(r => `
+    <div class="record-row">
+      <div>
+        <div class="name">${escapeHtml(r.formulaName)}</div>
+        <div class="time">${escapeHtml(r.time)}</div>
+      </div>
+      <span class="badge ok">${escapeHtml(r.status || '已取药')}</span>
+    </div>
+  `).join('');
+}
+
+/* ============================================================
+ *  药材管理
+ * ========================================================== */
+let editingHerbId = null;
+function renderHerbs() {
+  const kw = (document.getElementById('herb-search').value || '').trim().toLowerCase();
+  const list = state.herbs.filter(h =>
+    !kw || h.name.toLowerCase().includes(kw) || (h.symptoms || '').toLowerCase().includes(kw)
+  );
+  const grid = document.getElementById('herb-grid');
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">未找到药材</div>';
+    return;
+  }
+  // 在任意经方的药材组成中出现过 = 可用，否则 = 闲置
+  const usedNames = new Set();
+  state.formulas.forEach(f => f.ingredients.forEach(i => usedNames.add(i.name)));
+  grid.innerHTML = list.map(h => {
+    const status = usedNames.has(h.name)
+      ? '<span class="badge ok">可用</span>'
+      : '<span class="badge idle">闲置</span>';
+    return `
+      <div class="card">
+        <div class="card-actions">
+          <button class="btn btn-ghost" title="编辑" onclick="openHerbModal('${h.id}')">✏️</button>
+          <button class="btn btn-ghost" title="删除" onclick="deleteHerb('${h.id}')">🗑️</button>
+        </div>
+        <div class="card-head">
+          <div class="card-icon">🌱</div>
+          <div>
+            <div class="card-title">${escapeHtml(h.name)}</div>
+            <div style="margin-top:4px">${status}</div>
+          </div>
+        </div>
+        <div class="card-row"><span class="k">重量</span><span class="v"><b>${h.weight}</b> 克</span></div>
+        <div class="card-row"><span class="k">适用症状</span><span class="v">${escapeHtml(h.symptoms) || '<i style="color:#9ca3af">未填写</i>'}</span></div>
+        ${h.note ? `<div class="card-note">${escapeHtml(h.note)}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+function openHerbModal(id) {
+  editingHerbId = id || null;
+  document.getElementById('herb-modal-title').textContent = id ? '编辑药材' : '添加药材';
+  document.getElementById('herb-save-btn').textContent = id ? '保存修改' : '添加药材';
+  if (id) {
+    const h = state.herbs.find(x => x.id === id);
+    document.getElementById('herb-name').value = h.name;
+    document.getElementById('herb-weight').value = h.weight;
+    document.getElementById('herb-symptoms').value = h.symptoms || '';
+    document.getElementById('herb-note').value = h.note || '';
+  } else {
+    document.getElementById('herb-name').value = '';
+    document.getElementById('herb-weight').value = '';
+    document.getElementById('herb-symptoms').value = '';
+    document.getElementById('herb-note').value = '';
+  }
+  openModal('herb-modal');
+}
+function saveHerb() {
+  const name = document.getElementById('herb-name').value.trim();
+  const weight = parseFloat(document.getElementById('herb-weight').value);
+  const symptoms = document.getElementById('herb-symptoms').value.trim();
+  const note = document.getElementById('herb-note').value.trim();
+  if (!name) return toast('请填写药材名称', 'err');
+  if (isNaN(weight) || weight < 0) return toast('请填写有效重量', 'err');
+
+  if (editingHerbId) {
+    const h = state.herbs.find(x => x.id === editingHerbId);
+    // 改名要同步更新经方里的引用
+    if (h.name !== name) {
+      state.formulas.forEach(f => f.ingredients.forEach(i => { if (i.name === h.name) i.name = name; }));
+    }
+    Object.assign(h, { name, weight, symptoms, note });
+    toast('已保存修改');
+  } else {
+    state.herbs.push({ id: uid('h'), name, weight, symptoms, note });
+    toast('已添加药材');
+  }
+  saveData(); closeModal('herb-modal'); renderHerbs(); renderHome();
+}
+function deleteHerb(id) {
+  const h = state.herbs.find(x => x.id === id);
+  if (!confirm(`确定删除药材「${h.name}」吗？`)) return;
+  state.herbs = state.herbs.filter(x => x.id !== id);
+  saveData(); renderHerbs(); renderHome();
+  toast('已删除', 'ok');
+}
+
+/* ============================================================
+ *  经方管理
+ * ========================================================== */
+let editingFormulaId = null;
+function renderFormulas() {
+  const kw = (document.getElementById('formula-search').value || '').trim().toLowerCase();
+  const list = state.formulas.filter(f =>
+    !kw || f.name.toLowerCase().includes(kw) || (f.efficacy || '').toLowerCase().includes(kw)
+  );
+  const grid = document.getElementById('formula-grid');
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">未找到经方</div>';
+    return;
+  }
+  grid.innerHTML = list.map(f => renderFormulaCard(f)).join('');
+}
+function renderFormulaCard(f) {
+  const stock = checkStock(f);
+  const stockBadge =
+    stock.status === 'ok'   ? '<span class="badge ok">库存充足</span>' :
+    stock.status === 'low'  ? '<span class="badge low">库存不足</span>' :
+                              '<span class="badge low">缺少药材</span>';
+  const chips = f.ingredients.map(i => {
+    const herb = state.herbs.find(h => h.name === i.name);
+    const enough = herb && herb.weight >= i.amount;
+    return `<span class="chip" style="${enough?'':'background:#fee2e2;color:#b91c1c;'}">🌿 ${escapeHtml(i.name)} ${i.amount}g</span>`;
+  }).join('');
+  return `
+    <div class="card">
+      <div class="card-actions">
+        <button class="btn btn-ghost" title="编辑" onclick="openFormulaModal('${f.id}')">✏️</button>
+        <button class="btn btn-ghost" title="删除" onclick="deleteFormula('${f.id}')">🗑️</button>
+      </div>
+      <div class="card-head">
+        <div class="card-icon book">📖</div>
+        <div>
+          <div class="card-title">${escapeHtml(f.name)}</div>
+          <div style="margin-top:4px">${stockBadge}</div>
+        </div>
+      </div>
+      <div class="small-label">药材组成</div>
+      <div style="margin-top:4px">${chips}</div>
+      <div class="small-label">功效</div>
+      <div class="efficacy">${escapeHtml(f.efficacy) || '<i style="color:#9ca3af">未填写</i>'}</div>
+      <button class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center" onclick="openTakeModal('${f.id}')">✓ 取药</button>
+    </div>
+  `;
+}
+function checkStock(f) {
+  let missing = false, low = false;
+  for (const ing of f.ingredients) {
+    const herb = state.herbs.find(h => h.name === ing.name);
+    if (!herb) missing = true;
+    else if (herb.weight < ing.amount) low = true;
+  }
+  if (missing) return { status: 'missing' };
+  if (low) return { status: 'low' };
+  return { status: 'ok' };
+}
+function openFormulaModal(id) {
+  editingFormulaId = id || null;
+  document.getElementById('formula-modal-title').textContent = id ? '编辑经方' : '添加经方';
+  document.getElementById('formula-save-btn').textContent = id ? '保存修改' : '保存经方';
+  document.getElementById('ingr-list').innerHTML = '';
+  if (id) {
+    const f = state.formulas.find(x => x.id === id);
+    document.getElementById('formula-name').value = f.name;
+    document.getElementById('formula-efficacy').value = f.efficacy || '';
+    f.ingredients.forEach(i => addIngrRow(i.name, i.amount));
+  } else {
+    document.getElementById('formula-name').value = '';
+    document.getElementById('formula-efficacy').value = '';
+    addIngrRow();
+  }
+  openModal('formula-modal');
+}
+function addIngrRow(name='', amount='') {
+  const list = document.getElementById('ingr-list');
+  const row = document.createElement('div');
+  row.className = 'ingr-row';
+  const opts = state.herbs.map(h => `<option value="${escapeHtml(h.name)}" ${h.name===name?'selected':''}>${escapeHtml(h.name)}（库存${h.weight}g）</option>`).join('');
+  row.innerHTML = `
+    <select class="ingr-name"><option value="">请选择药材</option>${opts}</select>
+    <input class="ingr-amount" type="number" min="0" step="0.1" placeholder="克数" value="${amount}" />
+    <button class="del" onclick="this.parentElement.remove()">×</button>
+  `;
+  list.appendChild(row);
+}
+function saveFormula() {
+  const name = document.getElementById('formula-name').value.trim();
+  const efficacy = document.getElementById('formula-efficacy').value.trim();
+  if (!name) return toast('请填写经方名称', 'err');
+  const rows = document.querySelectorAll('#ingr-list .ingr-row');
+  const ingredients = [];
+  for (const row of rows) {
+    const n = row.querySelector('.ingr-name').value;
+    const a = parseFloat(row.querySelector('.ingr-amount').value);
+    if (!n) continue;
+    if (isNaN(a) || a <= 0) return toast(`药材「${n}」克数无效`, 'err');
+    ingredients.push({ name: n, amount: a });
+  }
+  if (ingredients.length === 0) return toast('请至少添加一味药材', 'err');
+
+  if (editingFormulaId) {
+    const f = state.formulas.find(x => x.id === editingFormulaId);
+    Object.assign(f, { name, efficacy, ingredients });
+    toast('已保存修改');
+  } else {
+    state.formulas.push({ id: uid('f'), name, efficacy, ingredients });
+    toast('已添加经方');
+  }
+  saveData(); closeModal('formula-modal'); renderFormulas(); renderHome();
+}
+function deleteFormula(id) {
+  const f = state.formulas.find(x => x.id === id);
+  if (!confirm(`确定删除经方「${f.name}」吗？`)) return;
+  state.formulas = state.formulas.filter(x => x.id !== id);
+  saveData(); renderFormulas(); renderHome();
+  toast('已删除');
+}
+
+/* ============================================================
+ *  取药（扣除存量）
+ * ========================================================== */
+let pendingTakeId = null;
+function openTakeModal(formulaId) {
+  pendingTakeId = formulaId;
+  const f = state.formulas.find(x => x.id === formulaId);
+  const list = document.getElementById('take-list');
+  let canTake = true;
+  list.innerHTML = f.ingredients.map(i => {
+    const herb = state.herbs.find(h => h.name === i.name);
+    if (!herb) { canTake = false; return `<div class="item low"><span>${escapeHtml(i.name)} · 需 ${i.amount}g</span><span>缺少此药材</span></div>`; }
+    const enough = herb.weight >= i.amount;
+    if (!enough) canTake = false;
+    return `<div class="item${enough?'':' low'}">
+      <span>${escapeHtml(i.name)} · 需 <b>${i.amount}g</b></span>
+      <span class="stock-hint${enough?'':' low'}">当前库存 ${herb.weight}g${enough?'':'（不足）'}</span>
+    </div>`;
+  }).join('');
+  const btn = document.getElementById('take-confirm-btn');
+  btn.disabled = !canTake;
+  btn.style.opacity = canTake ? '1' : '.5';
+  btn.style.cursor = canTake ? 'pointer' : 'not-allowed';
+  btn.textContent = canTake ? '确认取药' : '库存不足，无法取药';
+  openModal('take-modal');
+}
+function confirmTake() {
+  const f = state.formulas.find(x => x.id === pendingTakeId);
+  if (!f) return;
+  // 二次校验
+  for (const i of f.ingredients) {
+    const herb = state.herbs.find(h => h.name === i.name);
+    if (!herb || herb.weight < i.amount) {
+      toast('库存不足', 'err'); return;
+    }
+  }
+  // 扣减
+  for (const i of f.ingredients) {
+    const herb = state.herbs.find(h => h.name === i.name);
+    herb.weight = +(herb.weight - i.amount).toFixed(2);
+  }
+  state.records.push({
+    id: uid('r'),
+    formulaName: f.name,
+    time: formatTime(new Date()),
+    status: '已取药'
+  });
+  saveData(); closeModal('take-modal');
+  renderHerbs(); renderFormulas(); renderHome();
+  toast(`已取「${f.name}」，库存已扣减`);
+}
+function formatTime(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/* ============================================================
+ *  智能匹配
+ * ========================================================== */
+let matchTab = 'herb';
+function switchMatchTab(tab) {
+  matchTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  renderMatch();
+}
+function renderMatch() {
+  const kw = (document.getElementById('match-search').value || '').trim().toLowerCase();
+  const grid = document.getElementById('match-grid');
+  if (matchTab === 'herb') {
+    let list = state.herbs;
+    if (kw) list = state.herbs.filter(h => (h.symptoms || '').toLowerCase().includes(kw));
+    if (list.length === 0) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${kw?'未匹配到对应症状的药材':'输入症状以匹配药材'}</div>`; return; }
+    grid.innerHTML = list.map(h => `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-icon">🌱</div>
+          <div>
+            <div class="card-title">${escapeHtml(h.name)}</div>
+            <div style="margin-top:4px"><span class="badge ok">${h.weight}克</span></div>
+          </div>
+        </div>
+        <div class="small-label">适用症状</div>
+        <div style="margin-top:2px;font-size:14px;color:#374151">${highlight(h.symptoms, kw) || '<i style="color:#9ca3af">未填写</i>'}</div>
+        <div class="small-label">备注</div>
+        <div style="margin-top:2px;font-size:14px;color:#374151">${escapeHtml(h.note) || '<i style="color:#9ca3af">未填写</i>'}</div>
+      </div>
+    `).join('');
+  } else {
+    let list = state.formulas;
+    if (kw) {
+      list = state.formulas.filter(f => {
+        if ((f.efficacy || '').toLowerCase().includes(kw)) return true;
+        return f.ingredients.some(i => {
+          const herb = state.herbs.find(h => h.name === i.name);
+          return herb && (herb.symptoms || '').toLowerCase().includes(kw);
+        });
+      });
+    }
+    if (list.length === 0) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${kw?'未匹配到对应症状的经方':'输入症状以匹配经方'}</div>`; return; }
+    grid.innerHTML = list.map(f => renderFormulaCard(f)).join('');
+  }
+}
+
+/* ============================================================
+ *  工具
+ * ========================================================== */
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function highlight(text, kw) {
+  if (!text) return '';
+  const safe = escapeHtml(text);
+  if (!kw) return safe;
+  const re = new RegExp(escapeReg(kw), 'gi');
+  return safe.replace(re, m => `<mark style="background:#fef08a;padding:0 2px;border-radius:3px;">${m}</mark>`);
+}
+function escapeReg(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+/* 初始渲染 */
+renderHome(); renderHerbs(); renderFormulas(); renderMatch();
+</script>
+</body>
+</html>
